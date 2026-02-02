@@ -4,8 +4,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 import pandas as pd
-from ..storage.database import TimescaleDBHandler
-from ..storage.data_lake import DataLakeHandler
+from storage.database import TimescaleDBHandler
+from storage.data_lake import DataLakeHandler
 
 logger = logging.getLogger(__name__)
 

@@ -7,8 +7,8 @@ from typing import List
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from ..models import ProcessedTelemetryEvent
-from ..config import config
+from models import ProcessedTelemetryEvent
+from config import config
 
 logger = logging.getLogger(__name__)
 

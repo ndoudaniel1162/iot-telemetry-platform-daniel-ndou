@@ -4,9 +4,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import pandas as pd
-from ..storage.database import TimescaleDBHandler
-from ..storage.data_lake import DataLakeHandler
-from ..models import ProcessedTelemetryEvent
+from storage.database import TimescaleDBHandler
+from storage.data_lake import DataLakeHandler
+from models import ProcessedTelemetryEvent
 
 logger = logging.getLogger(__name__)
 

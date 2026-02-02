@@ -3,8 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 from typing import List
-from ..models import ProcessedTelemetryEvent, DataQualityResult
-from ..config import config
+from models import ProcessedTelemetryEvent, DataQualityResult
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,21 @@ class DataQualityValidator:
         # Timestamp validation
         if event.time:
             now = datetime.utcnow()
-            if event.time > now + timedelta(minutes=5):
+            
+            # Handle timezone-aware vs timezone-naive datetime comparison
+            event_time = event.time
+            if hasattr(event_time, 'tzinfo') and event_time.tzinfo is not None:
+                # Event time is timezone-aware, make now timezone-aware too
+                from datetime import timezone
+                now = now.replace(tzinfo=timezone.utc)
+            elif hasattr(now, 'tzinfo') and now.tzinfo is not None:
+                # Now is timezone-aware, make event time timezone-aware
+                from datetime import timezone
+                event_time = event_time.replace(tzinfo=timezone.utc)
+            
+            if event_time > now + timedelta(minutes=5):
                 errors.append("Timestamp is too far in the future")
-            elif event.time < now - timedelta(days=30):
+            elif event_time < now - timedelta(days=30):
                 warnings.append("Timestamp is older than 30 days")
         
         # Value range validation

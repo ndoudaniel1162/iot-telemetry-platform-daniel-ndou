@@ -13,9 +13,6 @@ def setup_database():
         engine = create_engine(config["database"].connection_string)
         
         with engine.connect() as conn:
-            # Enable TimescaleDB extension
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
-            
             # Create telemetry table
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS telemetry (
@@ -32,13 +29,6 @@ def setup_database():
                     PRIMARY KEY (time, device_id)
                 );
             """))
-            
-            # Convert to hypertable
-            try:
-                conn.execute(text("SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);"))
-            except Exception as e:
-                if "already a hypertable" not in str(e):
-                    raise
             
             # Create indexes
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_telemetry_device_id ON telemetry (device_id, time DESC);"))

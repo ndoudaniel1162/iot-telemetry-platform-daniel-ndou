@@ -2,7 +2,12 @@
 
 import logging
 import sys
+import os
 from pathlib import Path
+
+# Add src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
 from ingestion.kafka_simulator import KafkaSimulator
 from processing.stream_processor import StreamProcessor
 from quality.monitor import DataQualityMonitor

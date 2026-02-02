@@ -1,6 +1,3 @@
--- Enable TimescaleDB extension
-CREATE EXTENSION IF NOT EXISTS timescaledb;
-
 -- Create telemetry table
 CREATE TABLE IF NOT EXISTS telemetry (
     time TIMESTAMPTZ NOT NULL,
@@ -15,9 +12,6 @@ CREATE TABLE IF NOT EXISTS telemetry (
     ingestion_time TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (time, device_id)
 );
-
--- Convert to hypertable
-SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_telemetry_device_id ON telemetry (device_id, time DESC);

@@ -22,7 +22,7 @@ class KafkaSimulator:
             device_id = random.choice(self.sample_devices)
             
         return {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.utcnow().isoformat(),
             "device_id": device_id,
             "temperature": round(random.uniform(15.0, 35.0), 2),
             "humidity": round(random.uniform(30.0, 80.0), 2),

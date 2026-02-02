@@ -2,11 +2,11 @@
 
 import logging
 from typing import List, Tuple
-from ..models import ProcessedTelemetryEvent, parse_telemetry_event
-from ..storage.database import TimescaleDBHandler
-from ..storage.data_lake import DataLakeHandler
-from ..quality.validator import DataQualityValidator
-from ..ingestion.kafka_simulator import DeadLetterQueue
+from models import ProcessedTelemetryEvent, parse_telemetry_event
+from storage.database import TimescaleDBHandler
+from storage.data_lake import DataLakeHandler
+from quality.validator import DataQualityValidator
+from ingestion.kafka_simulator import DeadLetterQueue
 
 logger = logging.getLogger(__name__)
 

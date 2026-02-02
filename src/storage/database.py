@@ -5,8 +5,8 @@ from typing import List, Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import pandas as pd
-from ..models import ProcessedTelemetryEvent, DataQualityResult
-from ..config import config
+from models import ProcessedTelemetryEvent, DataQualityResult
+from config import config
 
 logger = logging.getLogger(__name__)
 

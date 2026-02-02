@@ -50,7 +50,15 @@ class ProcessedTelemetryEvent(BaseModel):
     @validator('time', 'ingestion_time', pre=True)
     def parse_datetime(cls, v):
         if isinstance(v, str):
-            return datetime.fromisoformat(v.replace('Z', '+00:00'))
+            # Handle different datetime string formats
+            if v.endswith('Z'):
+                # Replace Z with +00:00 for proper parsing
+                v = v.replace('Z', '+00:00')
+            try:
+                return datetime.fromisoformat(v)
+            except ValueError:
+                # If fromisoformat fails, try without timezone info
+                return datetime.fromisoformat(v.split('+')[0].split('Z')[0])
         return v
 
 class DataQualityResult(BaseModel):
