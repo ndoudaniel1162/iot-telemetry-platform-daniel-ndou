@@ -1,211 +1,204 @@
-# IoT Telemetry Platform Architecture
+# IoT Telemetry Data Engineering Platform
 
-## Overview
-This document describes the architecture design for a high-volume IoT telemetry data ingestion platform that supports schema evolution, dual storage, and analytics workloads.
+## Architecture Design Document
 
-## Architecture Diagram
+**Author:** Daniel Ndou\
+**Role:** Senior Data Engineer -- Technical Assessment
 
+------------------------------------------------------------------------
+
+# 1. Overview
+
+This document describes the architecture of a lightweight IoT telemetry
+data ingestion and processing platform designed to demonstrate:
+
+-   Streaming-style data ingestion
+-   Schema evolution handling
+-   Dual storage architecture (SQLite + JSON Data Lake)
+-   Data quality validation and monitoring
+-   Error handling and batch processing
+-   Migration capability for historical data
+
+The system simulates high-volume IoT telemetry ingestion while remaining
+dependency-light and easy to execute locally.
+
+------------------------------------------------------------------------
+
+# 2. High-Level Architecture
+
+    IoT Devices → Kafka Simulation (JSONL) → Stream Processor → [SQLite + JSON Data Lake]
+                                                            ↓
+                                                     Data Quality Monitor
+
+------------------------------------------------------------------------
+
+# 3. Architecture Components
+
+## 3.1 Data Ingestion Layer
+
+Instead of deploying a real Kafka cluster, the system simulates
+streaming ingestion using:
+
+-   JSONL (JSON Lines) event files
+-   Programmatically generated telemetry data
+-   Batch-based processing to mimic consumer behavior
+
+### Telemetry Event Structure
+
+Each event contains:
+
+-   device_id\
+-   timestamp\
+-   temperature\
+-   humidity\
+-   Optional fields (Schema V2):
+    -   battery_level\
+    -   firmware_version
+
+------------------------------------------------------------------------
+
+## 3.2 Stream Processing Layer
+
+Responsible for:
+
+-   Batch ingestion (default: 50 events per batch)
+-   Schema evolution detection
+-   Data transformation
+-   Validation enforcement
+-   Error isolation
+
+### Schema Evolution Strategy
+
+Supports:
+
+-   **V1 Schema**: Base telemetry fields\
+-   **V2 Schema**: Additional optional fields
+
+Design principles:
+
+-   Backward compatibility maintained\
+-   Optional fields handled gracefully\
+-   Automatic version detection\
+-   Default values applied where necessary
+
+------------------------------------------------------------------------
+
+# 4. Dual Storage Architecture
+
+## 4.1 SQLite (Operational Store)
+
+Purpose:
+
+-   Fast structured queries\
+-   Device-level aggregations\
+-   Operational monitoring
+
+Characteristics:
+
+-   File-based database (`iot_telemetry.db`)\
+-   Indexed on `device_id` and `timestamp`\
+-   Lightweight and portable
+
+Example query:
+
+``` sql
+SELECT device_id, COUNT(*) 
+FROM telemetry 
+GROUP BY device_id;
 ```
-┌─────────────────┐    ┌──────────────┐    ┌─────────────────────┐
-│   IoT Devices   │───▶│    Kafka     │───▶│  Stream Processor   │
-│                 │    │   Topics     │    │                     │
-│ • Sensors       │    │              │    │ • Schema Evolution  │
-│ • Gateways      │    │ Partitioned  │    │ • Data Validation   │
-│ • Edge Devices  │    │ by device_id │    │ • Error Handling    │
-└─────────────────┘    └──────────────┘    └─────────────────────┘
-                                                       │
-                                                       ▼
-                              ┌─────────────────────────────────────┐
-                              │         Dual Storage Layer          │
-                              │                                     │
-                              │  ┌─────────────────┐ ┌─────────────┐│
-                              │  │   TimescaleDB   │ │ Data Lake   ││
-                              │  │                 │ │ (Parquet)   ││
-                              │  │ • Operational   │ │             ││
-                              │  │   Queries       │ │ • Analytics ││
-                              │  │ • Real-time     │ │ • ML        ││
-                              │  │   Dashboards    │ │ • Historical││
-                              │  └─────────────────┘ └─────────────┘│
-                              └─────────────────────────────────────┘
-                                                       │
-                                                       ▼
-                              ┌─────────────────────────────────────┐
-                              │      Data Quality Monitor           │
-                              │                                     │
-                              │ • Validation Rules                  │
-                              │ • Anomaly Detection                 │
-                              │ • Alerting                          │
-                              │ • Quality Metrics                   │
-                              └─────────────────────────────────────┘
-                                                       │
-                                                       ▼
-                              ┌─────────────────────────────────────┐
-                              │       Analytics Layer               │
-                              │                                     │
-                              │  ┌─────────────┐ ┌─────────────────┐│
-                              │  │ BI Tools    │ │ ML Pipelines    ││
-                              │  │             │ │                 ││
-                              │  │ • Grafana   │ │ • Feature Eng   ││
-                              │  │ • Tableau   │ │ • Model Training││
-                              │  │ • Superset  │ │ • Predictions   ││
-                              │  └─────────────┘ └─────────────────┘│
-                              └─────────────────────────────────────┘
-```
 
-## Component Details
+------------------------------------------------------------------------
 
-### 1. Data Ingestion Layer
+## 4.2 JSON Data Lake (Analytical Store)
 
-#### Kafka Topics & Partitioning Strategy
-- **Topic Design**: Single topic `iot-telemetry` with multiple partitions
-- **Partitioning**: By `device_id` to ensure ordered processing per device
-- **Retention**: 7 days for operational data, longer for compliance if needed
-- **Replication Factor**: 3 for high availability
+Purpose:
 
-#### Schema Management
-- **Schema Registry**: Avro schemas with backward compatibility
-- **Version Evolution**: Support for adding optional fields
-- **Schema Validation**: At ingestion time with fallback handling
+-   Historical storage\
+-   Analytical workloads\
+-   ML feature engineering
 
-### 2. Stream Processing Layer
+Structure example:
 
-#### Processing Strategy
-- **Batch Processing**: Process events in configurable batches (100-1000 events)
-- **Parallel Processing**: Multiple consumer instances for scalability
-- **Idempotent Processing**: Handle duplicate events gracefully
-- **Error Handling**: Dead letter queue for failed events
+    data/
+     └── lake/
+         └── YYYY-MM-DD/
+             └── telemetry_batch_X.json
 
-#### Schema Evolution Handling
-- **Backward Compatibility**: New fields are optional
-- **Version Detection**: Automatic detection based on field presence
-- **Graceful Degradation**: Missing fields handled with defaults
+Rationale:
 
-### 3. Storage Layer
+-   Minimal dependencies\
+-   Human-readable\
+-   Demonstrates partitioned data lake principles
 
-#### TimescaleDB (Operational Store)
-- **Purpose**: Real-time queries, dashboards, operational monitoring
-- **Schema**: Hypertable partitioned by time
-- **Retention**: 30 days of detailed data
-- **Indexes**: Device ID, timestamp for fast queries
-- **Compression**: Automatic compression for older data
+------------------------------------------------------------------------
 
-#### Data Lake (Analytical Store)
-- **Format**: Parquet files with Snappy compression
-- **Partitioning**: Year/Month/Day for efficient querying
-- **Schema**: Flexible schema supporting evolution
-- **Retention**: Long-term storage (years)
-- **Optimization**: Columnar format for analytics
+# 5. Data Quality Layer
 
-### 4. Data Quality Layer
+Validation rules:
 
-#### Validation Rules
-- **Required Fields**: device_id, timestamp
-- **Value Ranges**: Temperature (-50°C to 100°C), Humidity (0-100%), etc.
-- **Timestamp Validation**: Not too far in future/past
-- **Location Validation**: Valid lat/lon ranges
+-   Required field checks\
+-   Value range validation
+    -   Temperature (-50°C to 100°C)\
+    -   Humidity (0--100%)\
+-   Timestamp validation
 
-#### Monitoring & Alerting
-- **Real-time Monitoring**: Data freshness, error rates
-- **Quality Metrics**: Completeness, accuracy, consistency
-- **Alerting**: Slack/email notifications for quality issues
-- **Dashboards**: Quality metrics visualization
+Outputs include:
 
-## Performance & Scalability Considerations
+-   Total records processed\
+-   Unique devices\
+-   Per-device counts\
+-   Failed record count
 
-### Throughput Requirements
-- **Target**: 100K+ events/second
-- **Peak Handling**: 10x burst capacity
-- **Latency**: <1 second end-to-end processing
+------------------------------------------------------------------------
 
-### Scaling Strategies
-- **Horizontal Scaling**: Add more Kafka partitions and consumers
-- **Database Scaling**: TimescaleDB clustering, read replicas
-- **Storage Scaling**: Distributed file system for data lake
-- **Processing Scaling**: Kubernetes-based auto-scaling
+# 6. Error Handling Strategy
 
-### Performance Optimizations
-- **Batch Processing**: Reduce per-event overhead
-- **Connection Pooling**: Efficient database connections
-- **Compression**: Reduce storage and network costs
-- **Indexing**: Optimized for query patterns
+Error categories:
 
-## Error Handling & Replay Strategy
+1.  Schema validation errors\
+2.  Missing required fields\
+3.  Out-of-range telemetry values
 
-### Error Categories
-1. **Transient Errors**: Network issues, temporary unavailability
-2. **Data Errors**: Invalid format, missing fields
-3. **System Errors**: Database failures, storage issues
+Handling approach:
 
-### Handling Strategies
-- **Retry Logic**: Exponential backoff for transient errors
-- **Dead Letter Queue**: Store failed events for manual review
-- **Circuit Breaker**: Prevent cascade failures
-- **Graceful Degradation**: Continue processing valid events
+-   Failed events isolated\
+-   Logged with contextual detail\
+-   Batch continues processing
 
-### Replay Capability
-- **Kafka Retention**: Replay from specific offset
-- **Idempotent Processing**: Safe to replay events
-- **State Management**: Track processing state
-- **Recovery Procedures**: Documented recovery steps
+------------------------------------------------------------------------
 
-## Data Consumption Patterns
+# 7. Trade-offs and Design Decisions
 
-### BI Team Consumption
-- **Direct Database Access**: TimescaleDB for real-time dashboards
-- **Data Lake Access**: Parquet files for historical analysis
-- **APIs**: REST/GraphQL APIs for custom applications
-- **Scheduled Exports**: Daily/weekly data exports
+  Decision                 Rationale
+  ------------------------ ---------------------------------
+  SQLite over PostgreSQL   Zero external dependencies
+  JSON over Parquet        Simplicity and readability
+  Batch processing         Reduced overhead
+  Kafka simulation         Avoid infrastructure complexity
 
-### ML Team Consumption
-- **Feature Store**: Processed features from data lake
-- **Batch Processing**: Spark/Dask for large-scale processing
-- **Streaming ML**: Real-time feature computation
-- **Model Training**: Historical data for training pipelines
+------------------------------------------------------------------------
 
-## Security Considerations
+# 8. Production Upgrade Path
 
-### Data Protection
-- **Encryption**: At rest and in transit
-- **Access Control**: Role-based access to data
-- **Audit Logging**: Track data access and modifications
-- **Data Masking**: PII protection where applicable
+  Current            Production Upgrade
+  ------------------ --------------------------------------
+  Kafka Simulation   Real Kafka Cluster
+  SQLite             PostgreSQL / TimescaleDB
+  JSON               Parquet on S3
+  Local processing   Distributed processing (Spark/Flink)
 
-### Network Security
-- **VPC**: Isolated network environment
-- **Firewall Rules**: Restrict access to necessary ports
-- **TLS**: Encrypted communication
-- **Authentication**: Service-to-service authentication
+------------------------------------------------------------------------
 
-## Monitoring & Observability
+# 9. Conclusion
 
-### Metrics
-- **Ingestion Rate**: Events per second
-- **Processing Latency**: End-to-end timing
-- **Error Rates**: Failed events percentage
-- **Storage Utilization**: Disk usage trends
+This platform demonstrates:
 
-### Logging
-- **Structured Logging**: JSON format for parsing
-- **Log Aggregation**: Centralized log collection
-- **Log Retention**: Configurable retention policies
-- **Search**: Full-text search capabilities
+-   Stream-style telemetry ingestion\
+-   Schema evolution handling\
+-   Dual storage design\
+-   Data quality validation\
+-   Error handling and resilience
 
-### Alerting
-- **SLA Monitoring**: Availability and performance SLAs
-- **Threshold Alerts**: Metric-based alerting
-- **Anomaly Detection**: ML-based anomaly alerts
-- **Escalation**: Multi-tier alert escalation
-
-## Disaster Recovery
-
-### Backup Strategy
-- **Database Backups**: Automated daily backups
-- **Data Lake Replication**: Cross-region replication
-- **Configuration Backup**: Infrastructure as code
-- **Recovery Testing**: Regular DR drills
-
-### High Availability
-- **Multi-AZ Deployment**: Across availability zones
-- **Load Balancing**: Distribute traffic
-- **Failover**: Automatic failover procedures
-- **Health Checks**: Continuous health monitoring
+The implementation balances architectural best practices with simplicity
+and portability while remaining extensible for production-scale
+evolution.
